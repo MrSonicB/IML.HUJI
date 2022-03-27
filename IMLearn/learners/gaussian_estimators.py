@@ -51,7 +51,13 @@ class UnivariateGaussian:
         Sets `self.mu_`, `self.var_` attributes according to calculated estimation (where
         estimator is either biased or unbiased). Then sets `self.fitted_` attribute to `True`
         """
-        raise NotImplementedError()
+        # Estimated expectation
+        self.mu_ = np.mean(X)
+        # Estimated variance
+        if self.biased_:
+            self.var_ = np.mean(np.power(X - self.mu_, 2))
+        else:
+            self.var_ = np.sum(np.power(X - self.mu_, 2)) / (len(X) - 1)
 
         self.fitted_ = True
         return self
@@ -76,7 +82,11 @@ class UnivariateGaussian:
         """
         if not self.fitted_:
             raise ValueError("Estimator must first be fitted before calling `pdf` function")
-        raise NotImplementedError()
+
+        coefficient = 1 / (np.power(2 * np.pi * self.var_, 0.5))
+        exp = np.exp((-1 * np.power(X - self.mu_, 2) / (2 * self.var_)))
+        return coefficient * exp
+
 
     @staticmethod
     def log_likelihood(mu: float, sigma: float, X: np.ndarray) -> float:
@@ -97,7 +107,11 @@ class UnivariateGaussian:
         log_likelihood: float
             log-likelihood calculated
         """
-        raise NotImplementedError()
+        # After deriving the log-likelihood function, I got the following:
+        num_of_samples = X.shape[0]
+        sum1 = num_of_samples * np.log(2 * np.pi * sigma)
+        sum2 = (1 / np.power(sigma, 2)) * np.sum(np.power(X - mu, 2))
+        return -0.5 * (sum1 + sum2)
 
 
 class MultivariateGaussian:
@@ -143,7 +157,13 @@ class MultivariateGaussian:
         Sets `self.mu_`, `self.cov_` attributes according to calculated estimation.
         Then sets `self.fitted_` attribute to `True`
         """
-        raise NotImplementedError()
+        # Estimated expectation vector
+        self.mu_ = np.mean(X, axis=0)
+        # Estimated covariance matrix
+        tmp_matrix = X
+        for j in range(X.shape[1]):
+            tmp_matrix[:, j] = tmp_matrix[:, j] - self.mu_[j]
+        self.cov_ = (1 / (X.shape[0] - 1)) * (np.transpose(tmp_matrix) @ tmp_matrix)
 
         self.fitted_ = True
         return self
@@ -166,9 +186,26 @@ class MultivariateGaussian:
         ------
         ValueError: In case function was called prior fitting the model
         """
+
+        def compute_pdf_for_vector(X1: np.ndarray):
+            """
+            Parameters
+            ----------
+            X1: ndarray of shape (n_features, ) Sample to calculate PDF for
+
+            Returns
+            ----------
+            Calculated PDF value (float) for the given sample
+            """
+            d = self.mu_.shape[0]
+            coefficient = 1 / (np.power(np.power(2*np.pi, d) * np.abs(det(self.cov_)), 0.5))
+            exp = np.exp(-0.5 * (np.transpose(X1 - self.mu_) @ (np.linalg.inv(self.cov_) @ (X1 - self.mu_))))
+            return coefficient * exp
+
         if not self.fitted_:
             raise ValueError("Estimator must first be fitted before calling `pdf` function")
-        raise NotImplementedError()
+
+        return np.apply_along_axis(compute_pdf_for_vector, 1, X)
 
     @staticmethod
     def log_likelihood(mu: np.ndarray, cov: np.ndarray, X: np.ndarray) -> float:
@@ -189,4 +226,25 @@ class MultivariateGaussian:
         log_likelihood: float
             log-likelihood calculated over all input data and under given parameters of Gaussian
         """
-        raise NotImplementedError()
+
+        # Just to save running time
+        cov_inverse = inv(cov)
+
+        def compute_multiplication(X1: np.ndarray):
+            """
+            Parameters
+            ----------
+            X1: ndarray of shape (n_features, ) Sample to calculate PDF for
+
+            Returns
+            ----------
+            Calculated value (float) of: (X1 - mu)^t * cov^-1 * (X1 - mu)
+            """
+            return np.transpose(X1 - mu) @ (cov_inverse @ (X1 - mu))
+
+        # After deriving the log-likelihood function, I got the following:
+        num_of_samples = X.shape[0]
+        num_of_features = X.shape[1]
+        sum1 = num_of_samples * (num_of_features * np.log(2 * np.pi) + np.log(np.abs(det(cov))))
+        sum2 = np.sum(np.apply_along_axis(compute_multiplication, 1, X))
+        return -0.5 * (sum1 + sum2)
