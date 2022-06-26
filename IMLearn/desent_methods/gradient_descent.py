@@ -76,7 +76,7 @@ class GradientDescent:
         self.max_iter_ = max_iter
         self.callback_ = callback
 
-    def fit(self, f: BaseModule, X: np.ndarray, y: np.ndarray):
+    def fit(self, f: BaseModule, X: np.ndarray, y: np.ndarray, iteration=None):
         """
         Optimize module using Gradient Descent iterations over given input samples and responses
 
@@ -119,4 +119,52 @@ class GradientDescent:
                 Euclidean norm of w^(t)-w^(t-1)
 
         """
-        raise NotImplementedError()
+        average = f.weights_
+        last = f.weights_
+        best = f.weights_
+        best_objective_value = f.compute_output(X=X, y=y)
+        curr_gradient_value = f.compute_jacobian(X=X, y=y)
+
+        for t in range(self.max_iter_):
+            rate = self.learning_rate_.lr_step(t=t + 1)
+            curr = last - rate * curr_gradient_value
+
+            # Update weights value and get it objective value
+            f.weights = curr
+            curr_objective_value = f.compute_output(X=X, y=y)
+            curr_gradient_value = f.compute_jacobian(X=X, y=y)
+
+            # Update average and best vectors
+            average = ((t + 1) * average + curr) / (t + 2)
+            if curr_objective_value < best_objective_value:
+                best = curr
+                best_objective_value = curr_objective_value
+
+            # Compute the distance between the current and last points
+            distance = np.linalg.norm(curr - last, ord=2)
+
+            # Callback function
+            self.callback_(
+                solver=self,
+                weights=curr,
+                val=curr_objective_value,
+                grad=curr_gradient_value,
+                t=t+1,
+                eta=rate,
+                delta=distance
+            )
+
+            # Update last vector and quit if tolerance has reached
+            last = curr
+            if distance <= self.tol_:
+                break
+
+        # Return a solution for weights vector according to the argument 'out_type'
+        if self.out_type_ == 'last':
+            return last
+        elif self.out_type_ == 'best':
+            return best
+        elif self.out_type_ == 'average':
+            return average
+        else:
+            raise Exception("In valid input for argument 'out_type' (Got %s)" % self.out_type_)
