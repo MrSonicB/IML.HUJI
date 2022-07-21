@@ -160,9 +160,6 @@ class BaseEstimator(ABC):
         X : ndarray of shape (n_samples, n_features)
             Input data to fit an estimator for
 
-        y : ndarray of shape (n_samples, )
-            Responses of input data to fit to
-
         Returns
         -------
         responses : ndarray of shape (n_samples, )

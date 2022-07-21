@@ -48,7 +48,10 @@ class FullyConnectedLayer(BaseModule):
         Weights are randomly initialized following N(0, 1/input_dim)
         """
         super().__init__()
-        raise NotImplementedError()
+        self.input_dim_ = input_dim
+        self.output_dim_ = output_dim
+        self.activation_ = activation
+        self.include_intercept_ = include_intercept
 
     def compute_output(self, X: np.ndarray, **kwargs) -> np.ndarray:
         """
@@ -65,7 +68,7 @@ class FullyConnectedLayer(BaseModule):
         output: ndarray of shape (n_samples, output_dim)
             Value of function at point self.weights
         """
-        raise NotImplementedError()
+        return self.activation_.compute_output(X @ np.transpose(self.weights_))
 
     def compute_jacobian(self, X: np.ndarray, **kwargs) -> np.ndarray:
         """
@@ -81,7 +84,7 @@ class FullyConnectedLayer(BaseModule):
         output: ndarray of shape (input_dim, n_samples)
             Derivative with respect to self.weights at point self.weights
         """
-        raise NotImplementedError()
+
 
 
 class ReLU(BaseModule):
@@ -103,7 +106,14 @@ class ReLU(BaseModule):
         output: ndarray of shape (n_samples, input_dim)
             Data after performing the ReLU activation function
         """
-        raise NotImplementedError()
+        m = X.shape[0]
+        d = X.shape[1]
+        res = np.zeros((m, d))
+
+        for i in range(m):
+            for j in range(d):
+                res[i, j] = np.max(X[i, j], 0)
+        return res
 
     def compute_jacobian(self, X: np.ndarray, **kwargs) -> np.ndarray:
         """
